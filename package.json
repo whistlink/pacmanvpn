@@ -1,7 +1,7 @@
 {
   "name": "pacmanvpn-proxy",
   "version": "1.0.0",
-  "description": "HTTPS forward proxy for PacmanVPN",
+  "description": "HTTPS forward proxy for PacmanVPN Chrome extension",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

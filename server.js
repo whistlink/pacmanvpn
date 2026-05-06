@@ -1,19 +1,15 @@
-// server.js — HTTPS forward proxy for FlyVPN
-// Handles both HTTP CONNECT tunneling (HTTPS sites) and plain HTTP forwarding
+// server.js — PacmanVPN proxy for Render.com
 
 const http = require("http");
 const net  = require("net");
 const url  = require("url");
 
-const PORT = process.env.PORT || 8080;
-
-// Optional: basic auth to lock down your proxy
-// Set PROXY_USER and PROXY_PASS env vars in Fly.io secrets
+const PORT      = process.env.PORT      || 8080;
 const AUTH_USER = process.env.PROXY_USER || "";
 const AUTH_PASS = process.env.PROXY_PASS || "";
 
 function checkAuth(req) {
-  if (!AUTH_USER) return true; // no auth configured — open proxy
+  if (!AUTH_USER) return true;
   const auth = req.headers["proxy-authorization"] || "";
   if (!auth.startsWith("Basic ")) return false;
   const decoded = Buffer.from(auth.slice(6), "base64").toString();
@@ -21,14 +17,40 @@ function checkAuth(req) {
   return user === AUTH_USER && pass === AUTH_PASS;
 }
 
+function getPacFile(host) {
+  return `function FindProxyForURL(url, host) {
+  if (isPlainHostName(host) || host === "localhost" || host === "127.0.0.1") {
+    return "DIRECT";
+  }
+  return "HTTPS ${host}:443";
+}`;
+}
+
 const server = http.createServer((req, res) => {
+  // Health check
+  if (req.url === "/" || req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    return res.end("PacmanVPN proxy running");
+  }
+
+  // Serve PAC file
+  if (req.url === "/pac" || req.url === "/proxy.pac") {
+    const host = req.headers.host || "localhost";
+    const pac  = getPacFile(host);
+    res.writeHead(200, {
+      "Content-Type":  "application/x-ns-proxy-autoconfig",
+      "Cache-Control": "no-cache"
+    });
+    return res.end(pac);
+  }
+
   if (!checkAuth(req)) {
-    res.writeHead(407, { "Proxy-Authenticate": 'Basic realm="FlyVPN"' });
+    res.writeHead(407, { "Proxy-Authenticate": 'Basic realm="PacmanVPN"' });
     return res.end("Proxy authentication required");
   }
 
   // Forward plain HTTP requests
-  const parsed = url.parse(req.url);
+  const parsed  = url.parse(req.url);
   const options = {
     hostname: parsed.hostname,
     port:     parsed.port || 80,
@@ -44,7 +66,7 @@ const server = http.createServer((req, res) => {
   });
 
   proxy.on("error", (err) => {
-    console.error("Proxy HTTP error:", err.message);
+    console.error("HTTP proxy error:", err.message);
     res.writeHead(502);
     res.end("Bad gateway");
   });
@@ -52,10 +74,10 @@ const server = http.createServer((req, res) => {
   req.pipe(proxy, { end: true });
 });
 
-// Handle HTTPS CONNECT tunneling
+// CONNECT tunneling for HTTPS
 server.on("connect", (req, clientSocket, head) => {
   if (!checkAuth(req)) {
-    clientSocket.write("HTTP/1.1 407 Proxy Auth Required\r\nProxy-Authenticate: Basic realm=\"FlyVPN\"\r\n\r\n");
+    clientSocket.write("HTTP/1.1 407 Proxy Auth Required\r\nProxy-Authenticate: Basic realm=\"PacmanVPN\"\r\n\r\n");
     return clientSocket.destroy();
   }
 
@@ -80,10 +102,7 @@ server.on("connect", (req, clientSocket, head) => {
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`FlyVPN proxy listening on port ${PORT}`);
-  if (AUTH_USER) {
-    console.log(`Auth enabled for user: ${AUTH_USER}`);
-  } else {
-    console.log("Warning: no auth configured — set PROXY_USER and PROXY_PASS");
-  }
+  console.log(`PacmanVPN proxy listening on port ${PORT}`);
+  if (AUTH_USER) console.log(`Auth enabled for user: ${AUTH_USER}`);
+  else console.log("Warning: no auth configured");
 });
