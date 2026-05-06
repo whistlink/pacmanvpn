@@ -1,7 +1,7 @@
 {
-  "name": "flyvpn-proxy",
+  "name": "pacmanvpn-proxy",
   "version": "1.0.0",
-  "description": "HTTPS forward proxy for FlyVPN Chrome extension",
+  "description": "HTTPS forward proxy for PacmanVPN",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
