@@ -1,0 +1,12 @@
+{
+  "name": "flyvpn-proxy",
+  "version": "1.0.0",
+  "description": "HTTPS forward proxy for FlyVPN Chrome extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
